@@ -27,8 +27,6 @@ async def command_start_handler(message: Message, state: FSMContext):
 @dp.message(Form.count_messages_in_day)
 async def set_count_messages(message: Message, state: FSMContext):
     try:
-        if 
-
         await state.update_data(count_messages_in_day=int(message.text))
         await state.set_state(Form.set_time_start_message)
         await message.answer("Теперь введите с какого времени вы хотите начать рассылку сообщений (в формате hh:mm 24): ")
