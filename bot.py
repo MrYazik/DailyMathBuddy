@@ -42,7 +42,7 @@ async def set_time_messaging(message: Message, state: FSMContext):
     # Проверка правильности времени
     try:
         if (len(time_start) <= 2 | len(time_start) > 0):
-            if (int(time_start[0]) < 24 | int(time_start[1]) < 60 | int(time_start[0]) > 0 | int(time_start[1]) > 0):
+            if (int(time_start[0]) < 24 | int(time_start[1]) < 60 & int(time_start[0]) > 0 | int(time_start[1]) > 0):
                 await state.update_data(set_time_messaging=message.text)
                 await state.set_state(Form.set_time_end_message)
                 await message.answer(f"Ваше время начала рассылки: {message.text}. Теперь укажите время конца рассылки (в формате hh:mm 24): ")
