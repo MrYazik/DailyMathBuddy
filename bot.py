@@ -28,39 +28,40 @@ async def command_start_handler(message: Message, state: FSMContext):
 async def set_count_messages(message: Message, state: FSMContext):
     try:
         # Проверка на количество сообщений в день (огграничение задано для защиты от перегорания)
-        if (int(message.text) > 200 | int(message.text) < 1):
-            return IndexError
-
-        await state.update_data(count_messages_in_day=int(message.text))
-        await state.set_state(Form.set_time_start_message)
-        await message.answer("Теперь введите с какого времени вы хотите начать рассылку сообщений (в формате hh:mm 24): ")
+        if (int(message.text) <= config.MESSAGE_LIMIT & int(message.text) > 0):
+            await state.update_data(count_messages_in_day=int(message.text))
+            await state.set_state(Form.set_time_start_message)
+            await message.answer("Теперь введите с какого времени вы хотите начать рассылку сообщений (в формате hh:mm 24): ")
+        else:
+            if (int(message.text) > config.MESSAGE_LIMIT):
+                await message.answer(f"Вы ввели слишком большое число.\nДля хорошей продуктивности рекомендуется не более {config.MESSAGE_LIMIT} сообщений")
+            if (int(message.text) < 1):
+                await message.answer(f"Вы ввели слишком маленькое число.\nДля хорошей продуктивности рекомендуется не более {config.MESSAGE_LIMIT} сообщений, но и не меньше нуля")
 
     except ValueError:
         await message.answer("Вы ввели число с ошибкой, попробуйте ещё раз. Выбери сколько примеров хочешь решить на сегодня (введи число примеров в течении дня): ")
-    except IndexError:
-        if (message.text > 200):
-            await message.answer(f"Вы ввели слишком большое число.\nДля хорошей продуктивности рекомендуется не более {config.MESSAGE_LIMIT} сообщений")
-        if (message.text < 1):
-            await message.answer(f"Вы ввели слишком маленькое число.\nДля хорошей продуктивности рекомендуется не более {config.MESSAGE_LIMIT} сообщений, но и не меньше нуля")
 
 @dp.message(Form.set_time_start_message)
 async def set_time_messaging(message: Message, state: FSMContext):
-    time_start = message.text.split(sep=":", maxsplit=-1)
-    await message.answer(f"time_start: {time_start}")
+    time_start = message.text.strip().split(":", 1)
 
     # Проверка правильности времени
     try:
-        if (len(time_start) <= 2 | len(time_start) > 0):
-            if (int(time_start[0]) < 24 | int(time_start[1]) < 60 & int(time_start[0]) > 0 | int(time_start[1]) > 0):
+        if (len(time_start) == 2):
+            hour = int(time_start[0])
+            min = int(time_start[1])
+
+            if (0 <= hour <= 23 and 0 <= min <= 59):
+
                 await state.update_data(set_time_messaging=message.text)
                 await state.set_state(Form.set_time_end_message)
                 await message.answer(f"Ваше время начала рассылки: {message.text}. Теперь укажите время конца рассылки (в формате hh:mm 24): ")
-            else:
-                return ValueError
+                return            
+
+            await message.answer("Вы ввели неправильный формат времени (часы не больше 23, и минуты не больше 59), введите время начала рассылки сообщений заного: ")
         else:
-            return ValueError
+            await message.answer("Вы ввели неправильный формат времени (необходимо в формате часы:минуты), введите время начала рассылки сообщений заного: ")
     except ValueError:
-        await state.set_state(Form.set_time_start_message)
         await message.answer("Вы ввели неправильный формат времени, введите время начала рассылки сообщений заного: ")
 
 async def main():
