@@ -7,11 +7,16 @@ import sys
 from aiogram import Bot, Dispatcher, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from json import load
+
+from func.create_db import create_user
+
+# Для ежедневного пресылания сообщений 
+import aioschedule
 
 dp = Dispatcher()
 
@@ -43,6 +48,15 @@ async def command_start_handler(message: Message, state: FSMContext):
 
     msg = start_messages['ru']['hello_message'].format(user=html.bold(message.from_user.full_name))
     await message.answer(msg)
+
+@dp.message(Command(commands='leha'))
+async def start(message: Message, state: FSMContext):
+    await state.set_state(Form.set_time_end_message)
+    await state.update_data(count_messages_in_day=100)
+    await state.update_data(set_time_start_message="00:00")
+    await state.update_data(set_time_end_message="01:00")
+
+    await message.answer("penis: ")
 
 @dp.message(Form.count_messages_in_day)
 async def set_count_messages(message: Message, state: FSMContext):
@@ -76,6 +90,7 @@ async def set_time_messaging(message: Message, state: FSMContext):
 
                 await state.update_data(set_time_start_message=message.text)
                 await state.set_state(Form.set_time_end_message)
+
                 await message.answer(set_time_messages['ru']['confirm_start_message'])
                 return            
 
@@ -99,9 +114,16 @@ async def set_time_end_messaging(message: Message, state: FSMContext):
             if (0 <= hour <= 23 and 0 <= min <= 59):
 
                 await state.update_data(set_time_end_message=message.text)
-                await state.set_state(Form.normal_mode)
 
                 data = await state.get_data()
+                await state.clear()
+
+                await state.set_state(Form.normal_mode)
+
+                create_user(str(message.from_user.id), 
+                    data.get("count_messages_in_day"), 
+                    data.get("set_time_start_message"), 
+                    data.get("set_time_end_message")) 
                 await message.answer(set_time_messages['ru']['end_message_time'])
                 return            
 
@@ -111,12 +133,17 @@ async def set_time_end_messaging(message: Message, state: FSMContext):
     except ValueError:
         await message.answer(set_time_messages['ru']['error_invalid_format'])
 
+# async def send_math_ex():
+
+
 
 async def main():
     bot = Bot(token=config.TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     await dp.start_polling(bot)
 
 
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    dp.start_polling()
     asyncio.run(main())
