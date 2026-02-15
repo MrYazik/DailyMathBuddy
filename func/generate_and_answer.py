@@ -18,7 +18,7 @@ with open(path / 'assets' / 'messages' / 'math_op.json') as f:
 
     print(path)
 
-def generate_math():
+def generate_math() -> str:
     one_number = random.randint(1, 10)
     two_number = random.randint(1, 10)
 

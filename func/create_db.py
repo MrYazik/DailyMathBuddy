@@ -11,6 +11,7 @@
 
 from pathlib import Path
 import sqlite3
+import asyncio
 
 script_dir = Path(__file__).parent.parent
 path = script_dir / 'func' / 'date' / 'users.db'
@@ -22,27 +23,25 @@ cursor = conn.cursor()
 
 def create_user(id: str, count_m: int, start: str, stop: str):
     cursor.execute(f'''
-INSERT OR REPLACE INTO users (id, count_messages_in_day, start_message, stop_message)
-VALUES (?, ?, ?, ?  )
-''', (id, count_m, start, stop))
+INSERT OR REPLACE INTO users (id, count_messages_in_day, start_message, stop_message, count_work)
+VALUES (?, ?, ?, ?, ?)
+''', (id, count_m, start, stop, 0))
     conn.commit()
 
-    cursor.execute("SELECT * FROM users")
-    print(cursor.fetchall())
+async def get_all_users():
+    cursor.execute("SELECT id, count_messages_in_day, start_message, stop_message, count_work FROM users")
+    return cursor.fetchall()
 
 if __name__ == '__main__':
 
-
     # Создание таблицы
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY, 
+        id TEXT PRIMARY KEY, 
         count_messages_in_day SMALLINT, 
-        start_message VARCHAR,
-        stop_message VARCHAR,
-        count_work TINYINT
-    );   
-    ''')
-
+        start_message TEXT,
+        stop_message TEXT,
+        count_work SMALLINT DEFAULT 0
+    );''')
 
     conn.commit()
     conn.close()
