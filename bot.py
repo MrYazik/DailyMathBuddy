@@ -14,7 +14,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.base import StorageKey
 from json import load
 
-from func.create_db import create_user, get_all_users
+from func.create_db import create_user, get_all_users, get_winstrik, add_winstrik, clear_winstrik
 from func.generate_and_answer import generate_math
 
 # Для ежедневного пресылания сообщений 
@@ -161,12 +161,14 @@ async def math_mode(message: Message, state: FSMContext):
                                 c=data_math.get("current_answer")
                                 ))
             await state.set_state(Form.normal_mode)
+            await add_winstrik(message.from_user.id)
         else:
             await message.answer(makets_messages_math['ru']['not_correct']
                                  .format(a=data_math.get("current_a"),
                                          b=data_math.get("current_b"),
                                          c=data_math.get("current_answer")))
             await state.set_state(Form.normal_mode)
+            await clear_winstrik(message.from_user.id)
     except ValueError:
         await message.answer(main_programm["ru"]["unvalid_value"])
         await state.set_state(Form.normal_mode)
@@ -192,16 +194,16 @@ async def scheduler():
             )
 
             current_state = await state_with.get_state()
-            print(f"give_task: current_state: {current_state}")
-
 
             if (current_state != Form.math_mode):
                 await state_with.set_state(Form.math_mode)
                 await state_with.update_data(current_a=int(math_quest["a"]), 
                                              current_b=int(math_quest["b"]),
                                              current_answer=int(math_quest["a"]) * int(math_quest["b"]))
-                await bot.send_message(int(user[0]), math_quest["quest"])
-                await bot.send_message(int(user[0]), "Введите ответ: ")
+                await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
+                                       .format(quest=math_quest["quest"],
+                                               strik=await get_winstrik(int(user[0]))
+                                       ))
 
 
 
