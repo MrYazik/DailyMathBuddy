@@ -70,8 +70,36 @@ async def kid_mode_set(query: CallbackQuery, state: FSMContext):
     level = query.data.split("_", 1)
 
     await create_user(str(query.from_user.id), level[1])
-    await state.set_state(Form.normal_mode)
+
+    
+    # Конкурс
+    asyncio.create_task(concurs())
+
     await query.answer()
+    await state.set_state(Form.normal_mode)
+
+
+@dp.message(Command(commands="stats"))
+async def stats(message: Message):
+    users = await get_all_users()
+    
+
+    sorted_users = sorted(users, key=lambda x: x[2], reverse=True)
+
+    messages = "🏆 <b>Топ 10 игроков по стрикам:</b>\n"
+
+    for i, user in enumerate(sorted_users[:10], 1):
+        try:
+            user_username = await bot.get_chat(int(user[0]))
+            messages += f"{str(i)}. <b>USERNAME</b>: @{user_username.username} | <b>Максимальный СТРИК</b>: {str(user[2])}\n"
+        except:
+            messages += f"{str(i)}. <b>USERNAME</b>: Не нашли, но знаем ID: {user[0]} | <b>Максимальный СТРИК</b>: {str(user[2])}\n"
+
+
+    await message.answer(messages)
+
+
+
 
 @dp.message(Form.math_mode)
 async def math_mode(message: Message, state: FSMContext):
@@ -132,7 +160,16 @@ async def scheduler():
         except:
             t = "None"
 
+### Конкурс ###
 
+async def concurs():
+    users = await get_all_users()
+
+    try:
+        for user in users:
+            await bot.send_message(int(user[0]), main_programm['ru']['concurs'])
+    except:
+        None
 
 async def main():
     asyncio.create_task(scheduler())

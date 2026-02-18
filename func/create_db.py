@@ -29,7 +29,7 @@ VALUES (?, ?)
 ''', (id, level))
     conn.commit()
 async def get_all_users():
-    cursor.execute("SELECT id, level FROM users")
+    cursor.execute("SELECT id, level, max_strik FROM users")
     return cursor.fetchall()
 
 ### Работа с винстриком ###
@@ -42,6 +42,14 @@ async def add_winstrik(id):
 async def get_winstrik(id):
     cursor.execute("SELECT x_good_answer FROM users WHERE id = (?);", (str(id),))
     returned = cursor.fetchall()
+    cursor.execute("SELECT max_strik FROM users WHERE id = (?);", (str(id),))
+    returned_max_strik = cursor.fetchall()
+
+    if (returned[0][0] > returned_max_strik[0][0]):
+        cursor.execute("""UPDATE users 
+                SET max_strik = x_good_answer
+                WHERE id = (?);""", (str(id),))
+
     return returned[0][0]
 async def clear_winstrik(id):
     cursor.execute("""UPDATE users 
