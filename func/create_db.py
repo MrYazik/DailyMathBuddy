@@ -20,15 +20,19 @@ path = script_dir / 'func' / 'date' / 'users.db'
 conn = sqlite3.connect(path)
 cursor = conn.cursor()
 
-def create_user(id: str, count_m: int, start: str, stop: str):
+### Работа с самим пользователем ###
+
+async def create_user(id: str, level: str):
     cursor.execute(f'''
-INSERT OR REPLACE INTO users (id, count_messages_in_day, start_message, stop_message, count_work)
-VALUES (?, ?, ?, ?, ?)
-''', (id, count_m, start, stop, 0))
+INSERT OR REPLACE INTO users (id, level)
+VALUES (?, ?)
+''', (id, level))
     conn.commit()
 async def get_all_users():
-    cursor.execute("SELECT id, count_messages_in_day, start_message, stop_message, count_work FROM users")
+    cursor.execute("SELECT id, level FROM users")
     return cursor.fetchall()
+
+### Работа с винстриком ###
 
 async def add_winstrik(id):
     cursor.execute("""UPDATE users 
@@ -44,6 +48,17 @@ async def clear_winstrik(id):
                    SET x_good_answer = 0
                    WHERE id = (?);""", (str(id),))
     conn.commit()
+
+### Работа с уровнем ###
+
+# kid - десткий уровень
+# middle - средний уровень
+# hard - сложный уровень
+
+async def get_level(id: str):
+    cursor.execute("""SELECT level FROM users
+                   WHERE id = (?)""")
+    print(cursor.fetchall())
 
 # if __name__ == '__main__':
 
@@ -61,7 +76,7 @@ async def clear_winstrik(id):
 #     conn.close()
 
 async def main():
-    asyncio.create_task(get_winstrik(1105683502))
+    asyncio.create_task(get_level(1105683502))
 
 if __name__ == '__main__':
     asyncio.run(main())

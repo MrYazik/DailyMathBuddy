@@ -1,6 +1,6 @@
 {
     "ru": {
         "unvalid_value": "Вы ввели неправильное значение! Попробуйте ещё раз",
-        "quest_math": "{quest}. STRIK: {strik} \n\nВведите ответ: "
+        "quest_math": "<b><u>{quest}</u></b>. СТРИК: {strik}\nMODE: {mode}\n\nВведите ответ: "
     }
 }

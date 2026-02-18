@@ -1,6 +1,11 @@
 import random
 import json
 from pathlib import Path
+
+if (__name__ == "__main__"):
+    from create_db import get_level
+else:
+    from func.create_db import get_level
 # from aiogram import Router, types
 # from aiogram.filters import Command
 
@@ -18,9 +23,24 @@ with open(path / 'assets' / 'messages' / 'math_op.json') as f:
 
     print(path)
 
-def generate_math() -> str:
-    one_number = random.randint(1, 10)
-    two_number = random.randint(1, 10)
+def generate_math(level: str) -> str:
+    if (level == 'kid'):
+        one_number = random.randint(1, 10)
+        two_number = random.randint(1, 10)
+    elif (level == 'middle'):
+        one_number = random.randint(3, 9)
+        two_number = random.randint(3, 9)
+
+        if (one_number == two_number):
+            one_number = random.randint(3, 9)
+            two_number = random.randint(3, 9) 
+    else:
+        one_number = random.randint(3, 9)
+        two_number = random.randint(3, 9)
+
+        if (one_number == two_number):
+            one_number = random.randint(3, 9)
+            two_number = random.randint(3, 9) 
 
     math_questions = makets_messages['ru']['x'].format(a=one_number, b = two_number)
     return {"quest": math_questions, "a": one_number, "b": two_number}

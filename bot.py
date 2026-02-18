@@ -4,14 +4,15 @@ import asyncio
 import logging
 import sys
 
-from aiogram import Bot, Dispatcher, html
+from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardButton, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.base import StorageKey
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from json import load
 
 from func.create_db import create_user, get_all_users, get_winstrik, add_winstrik, clear_winstrik
@@ -42,11 +43,6 @@ with open("assets/messages/math_op.json") as file:
 
 
 class Form(StatesGroup):
-    # Регистрация 
-    count_messages_in_day = State()
-    set_time_start_message = State()
-    set_time_end_message = State()
-
     # Режимы
     normal_mode=State()
     settings_mode=State()
@@ -58,95 +54,24 @@ class Form(StatesGroup):
     math_mode=State()
 
 @dp.message(CommandStart())
-async def command_start_handler(message: Message, state: FSMContext):
-    await state.set_state(Form.count_messages_in_day)
+async def command_start_handler(message: Message):
+    keyboardLevel = InlineKeyboardBuilder()
+    keyboardLevel.button(text="Детский", callback_data="set_kid")
+    keyboardLevel.button(text="Средний", callback_data="set_middle")
+    keyboardLevel.button(text="Сложный", callback_data="set_hard")
 
     msg = start_messages['ru']['hello_message'].format(user=html.bold(message.from_user.full_name))
-    await message.answer(msg)
+    
+    await message.answer(msg, reply_markup=keyboardLevel.as_markup())
 
-@dp.message(Command(commands='leha'))
-async def start(message: Message, state: FSMContext):
-    await state.set_state(Form.set_time_end_message)
-    await state.update_data(count_messages_in_day=100)
-    await state.update_data(set_time_start_message="00:00")
-    await state.update_data(set_time_end_message="01:00")
+### Выставление режима сложности ###
+@dp.callback_query(F.data.startswith("set_"))
+async def kid_mode_set(query: CallbackQuery, state: FSMContext):
+    level = query.data.split("_", 1)
 
-    await message.answer("penis: ")
-
-@dp.message(Form.count_messages_in_day)
-async def set_count_messages(message: Message, state: FSMContext):
-    try:
-        # Проверка на количество сообщений в день (огграничение задано для защиты от перегорания)
-        if (int(message.text) <= config.MESSAGE_LIMIT and int(message.text) > 0):
-            await state.update_data(count_messages_in_day=int(message.text))
-            await state.set_state(Form.set_time_start_message)
-            await message.answer(set_time_messages['ru']['start_message_time'])
-        else:
-            if (int(message.text) > config.MESSAGE_LIMIT):
-                await message.answer(start_messages['ru']['error_big_number'])
-            if (int(message.text) < 1):
-                await message.answer(start_messages['ru']['error_small_number'])
-
-    except ValueError:
-        await message.answer(start_messages['ru']['error_number'])
-
-# Установка времени начала рассылки
-@dp.message(Form.set_time_start_message)
-async def set_time_messaging(message: Message, state: FSMContext):
-    time_start = message.text.strip().split(":", 1)
-
-    # Проверка правильности времени
-    try:
-        if (len(time_start) == 2):
-            hour = int(time_start[0])
-            min = int(time_start[1])
-
-            if (0 <= hour <= 23 and 0 <= min <= 59):
-
-                await state.update_data(set_time_start_message=message.text)
-                await state.set_state(Form.set_time_end_message)
-
-                await message.answer(set_time_messages['ru']['confirm_start_message'])
-                return            
-
-            await message.answer(set_time_messages['ru']['error_invalid_time'])
-        else:
-            await message.answer(set_time_messages['ru']['error_invalid_format_time'])
-    except ValueError:
-        await message.answer(set_time_messages['ru']['error_invalid_format'])
-
-# Установка времени конца рассылки 
-@dp.message(Form.set_time_end_message)
-async def set_time_end_messaging(message: Message, state: FSMContext):
-    time_start = message.text.strip().split(":", 1)
-
-    # Проверка правильности времени
-    try:
-        if (len(time_start) == 2):
-            hour = int(time_start[0])
-            min = int(time_start[1])
-
-            if (0 <= hour <= 23 and 0 <= min <= 59):
-
-                await state.update_data(set_time_end_message=message.text)
-
-                data = await state.get_data()
-                await state.clear()
-
-                await state.set_state(Form.normal_mode)
-
-                create_user(str(message.chat.id), 
-                    data.get("count_messages_in_day"), 
-                    data.get("set_time_start_message"), 
-                    data.get("set_time_end_message")) 
-                await message.answer(set_time_messages['ru']['end_message_time'])
-                return            
-
-            await message.answer(set_time_messages['ru']['error_invalid_time'])
-        else:
-            await message.answer(set_time_messages['ru']['error_invalid_format_time'])
-    except ValueError:
-        await message.answer(set_time_messages['ru']['error_invalid_format'])
+    await create_user(str(query.from_user.id), level[1])
+    await state.set_state(Form.normal_mode)
+    await query.answer()
 
 @dp.message(Form.math_mode)
 async def math_mode(message: Message, state: FSMContext):
@@ -177,33 +102,35 @@ async def math_mode(message: Message, state: FSMContext):
 # Планирование задачи каждую минуту
 async def scheduler():
     while True:
-        await asyncio.sleep(5)  # Ждем 60 секунд
+        await asyncio.sleep(1)  # Ждем 60 секунд
         result = await get_all_users()
-        print(result)
 
-        math_quest = generate_math()
-
-        for user in result:
-            state_with: FSMContext = FSMContext(
-                storage=dp.storage,
-                key=StorageKey(
-                    chat_id=int(user[0]),
-                    user_id=int(user[0]),
-                    bot_id=bot.id
+        try:
+            for user in result:
+                state_with: FSMContext = FSMContext(
+                    storage=dp.storage,
+                    key=StorageKey(
+                        chat_id=int(user[0]),
+                        user_id=int(user[0]),
+                        bot_id=bot.id
+                    )
                 )
-            )
 
-            current_state = await state_with.get_state()
+                math_quest = generate_math(user[1])
+                current_state = await state_with.get_state()
 
-            if (current_state != Form.math_mode):
-                await state_with.set_state(Form.math_mode)
-                await state_with.update_data(current_a=int(math_quest["a"]), 
-                                             current_b=int(math_quest["b"]),
-                                             current_answer=int(math_quest["a"]) * int(math_quest["b"]))
-                await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
-                                       .format(quest=math_quest["quest"],
-                                               strik=await get_winstrik(int(user[0]))
-                                       ))
+                if (current_state != Form.math_mode):
+                    await state_with.set_state(Form.math_mode)
+                    await state_with.update_data(current_a=int(math_quest["a"]), 
+                                                 current_b=int(math_quest["b"]),
+                                                 current_answer=int(math_quest["a"]) * int(math_quest["b"]))
+                    await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
+                                           .format(quest=math_quest["quest"],
+                                                   strik=await get_winstrik(int(user[0])),
+                                                   mode=user[1]
+                                           ))
+        except:
+            t = "None"
 
 
 
