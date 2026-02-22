@@ -14,7 +14,8 @@ import sqlite3
 import asyncio
 
 script_dir = Path(__file__).parent.parent
-path = script_dir / 'func' / 'date' / 'users.db'
+# path = script_dir / 'func' / 'date' / 'users.db'
+path = script_dir / 'func' / 'date' / 'users_test_base.db'
 
 # Подключение (файл создастся, если его нет)
 conn = sqlite3.connect(path)
@@ -22,14 +23,23 @@ cursor = conn.cursor()
 
 ### Работа с самим пользователем ###
 
-async def create_user(id: str, level: str):
+async def create_user(id: str, level: str, username: str):
     cursor.execute(f'''
-INSERT OR REPLACE INTO users (id, level)
-VALUES (?, ?)
-''', (id, level))
+INSERT INTO users (id, level, username)
+VALUES (?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    level = (?),
+    username = (?);
+''', (id, level, username,     level, username))
     conn.commit()
+
+async def set_visible_concurs(id): # Видел конкурс
+    cursor.execute("""UPDATE users 
+                   SET concurs_message = TRUE
+                   WHERE id = (?);""", (str(id),))
+    
 async def get_all_users():
-    cursor.execute("SELECT id, level, max_strik FROM users")
+    cursor.execute("SELECT id, level, max_strik, concurs_message, banned, username FROM users")
     return cursor.fetchall()
 
 ### Работа с винстриком ###
@@ -67,6 +77,17 @@ async def get_level(id: str):
     cursor.execute("""SELECT level FROM users
                    WHERE id = (?)""")
     print(cursor.fetchall())
+
+
+### Работа с банами ###
+
+async def ban_user(id: str):
+    cursor.execute("""UPDATE users 
+                SET banned = TRUE, 
+                   x_good_answer = 0,
+                   max_strik = 0
+                WHERE id = (?);""", (str(id),))
+    conn.commit()
 
 # if __name__ == '__main__':
 
