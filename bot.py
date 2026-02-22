@@ -15,11 +15,8 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from json import load
 
-from func.create_db import create_user, get_all_users, get_winstrik, add_winstrik, clear_winstrik
+from func.create_db import create_user, get_all_users, get_winstrik, add_winstrik, clear_winstrik, set_visible_concurs, ban_user
 from func.generate_and_answer import generate_math
-
-# Для ежедневного пресылания сообщений 
-import schedule
 
 bot = Bot(token=config.TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
@@ -55,6 +52,8 @@ class Form(StatesGroup):
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message):
+
+
     keyboardLevel = InlineKeyboardBuilder()
     keyboardLevel.button(text="Детский", callback_data="set_kid")
     keyboardLevel.button(text="Средний", callback_data="set_middle")
@@ -62,21 +61,23 @@ async def command_start_handler(message: Message):
 
     msg = start_messages['ru']['hello_message'].format(user=html.bold(message.from_user.full_name))
     
+    
     await message.answer(msg, reply_markup=keyboardLevel.as_markup())
+    # await message.answer("Просим прощения!\n\nМы временно ограничили регистрацию из-за участившихся случаев атак на нашего бота.\n\n⌚ Конкурс заканчивается 22.02.2026.\nСпасибо за понимание")
+
 
 ### Выставление режима сложности ###
 @dp.callback_query(F.data.startswith("set_"))
 async def kid_mode_set(query: CallbackQuery, state: FSMContext):
     level = query.data.split("_", 1)
-
-    await create_user(str(query.from_user.id), level[1])
-
     
     # Конкурс
-    asyncio.create_task(concurs())
+    await concurs()
 
     await query.answer()
     await state.set_state(Form.normal_mode)
+    await create_user(id=str(query.from_user.id), level=level[1], username=str(query.from_user.username))
+
 
 
 @dp.message(Command(commands="stats"))
@@ -90,13 +91,25 @@ async def stats(message: Message):
 
     for i, user in enumerate(sorted_users[:10], 1):
         try:
-            user_username = await bot.get_chat(int(user[0]))
-            messages += f"{str(i)}. <b>USERNAME</b>: @{user_username.username} | <b>Максимальный СТРИК</b>: {str(user[2])}\n"
+            user_username = user[5]
+            if (user[5] == None): 
+                messages += f"{str(i)}. <b>USERNAME</b>: Не нашли, но знаем ID: {user[0]} | <b>Максимальный СТРИК</b>: {str(user[2])}\n"
+            else:
+                messages += f"{str(i)}. <b>USERNAME</b>: @{user[5]} | <b>Максимальный СТРИК</b>: {str(user[2])}\n"
         except:
-            messages += f"{str(i)}. <b>USERNAME</b>: Не нашли, но знаем ID: {user[0]} | <b>Максимальный СТРИК</b>: {str(user[2])}\n"
+            None
 
 
     await message.answer(messages)
+
+@dp.message(Command(commands="ban"))
+async def stats(message: Message):
+    if (str(message.from_user.id) == config.ADMIN_ID):
+        id_ban_user = message.text.split(" ", 1)[1]
+
+        await ban_user(str(id_ban_user))
+    else:
+        await message.answer("Вам нельзя банить")
 
 
 
@@ -135,28 +148,31 @@ async def scheduler():
 
         try:
             for user in result:
-                state_with: FSMContext = FSMContext(
-                    storage=dp.storage,
-                    key=StorageKey(
-                        chat_id=int(user[0]),
-                        user_id=int(user[0]),
-                        bot_id=bot.id
+                if (user[4] != 1):
+                    state_with: FSMContext = FSMContext(
+                        storage=dp.storage,
+                        key=StorageKey(
+                            chat_id=int(user[0]),
+                            user_id=int(user[0]),
+                            bot_id=bot.id
+                        )
                     )
-                )
 
-                math_quest = generate_math(user[1])
-                current_state = await state_with.get_state()
+                    math_quest = generate_math(user[1])
+                    current_state = await state_with.get_state()
 
-                if (current_state != Form.math_mode):
-                    await state_with.set_state(Form.math_mode)
-                    await state_with.update_data(current_a=int(math_quest["a"]), 
+                    if (current_state != Form.math_mode):
+                        await state_with.set_state(Form.math_mode)
+                        await state_with.update_data(current_a=int(math_quest["a"]), 
                                                  current_b=int(math_quest["b"]),
                                                  current_answer=int(math_quest["a"]) * int(math_quest["b"]))
-                    await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
-                                           .format(quest=math_quest["quest"],
-                                                   strik=await get_winstrik(int(user[0])),
-                                                   mode=user[1]
-                                           ))
+                        await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
+                                               .format(quest=math_quest["quest"],
+                                                       strik=await get_winstrik(int(user[0])),
+                                                       mode=user[1]
+                                               ))
+                else:
+                    await bot.send_message(int(user[0]), "Вы блять забанены тут, идите нахуй")
         except:
             t = "None"
 
@@ -167,7 +183,10 @@ async def concurs():
 
     try:
         for user in users:
-            await bot.send_message(int(user[0]), main_programm['ru']['concurs'])
+            if (user[3] == 0):
+                await bot.send_message(int(user[0]), main_programm['ru']['concurs'])
+                await set_visible_concurs(user[0])
+
     except:
         None
 
