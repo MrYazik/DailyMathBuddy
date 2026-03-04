@@ -3,9 +3,9 @@ import json
 from pathlib import Path
 
 if (__name__ == "__main__"):
-    from create_db import get_level
+    from func.data_base.create_db import get_level
 else:
-    from func.create_db import get_level
+    from func.data_base.create_db import get_level
 # from aiogram import Router, types
 # from aiogram.filters import Command
 
