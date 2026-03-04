@@ -45,7 +45,8 @@ async def get_user(id: str):
     cursor.execute("""SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer 
                    FROM users
                    WHERE id = (?)""", (str(id),))
-    return cursor.fetchall()
+    returned = cursor.fetchall()
+    return returned
 
 ### Работа с винстриком ###
 
