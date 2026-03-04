@@ -3,6 +3,12 @@ import config
 import asyncio
 import logging
 import sys
+import os
+
+from func import * # Папка со всеми командами и функциями бота, роутерами
+
+from aiogram import Router, types
+from aiogram.filters import CommandStart
 
 from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
@@ -15,12 +21,10 @@ from aiogram.fsm.storage.base import StorageKey
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from json import load
 
-from func.create_db import create_user, get_all_users, get_winstrik, add_winstrik, clear_winstrik, set_visible_concurs, ban_user, set_null_quest, set_a_b_quest, get_user
-from func.generate_and_answer import generate_math
+
 
 bot = Bot(token=config.TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
-
 
 # Открываем файл с текстами:
 
@@ -50,25 +54,6 @@ class Form(StatesGroup):
     current_answer=State()
     math_mode=State()
 
-@dp.message(CommandStart())
-async def command_start_handler(message: Message):
-    get_user_info_from_table = await get_user(str(message.from_user.id))
-
-    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
-        await message.answer(main_programm["ru"]["banned"].format(
-            name=message.from_user.first_name
-        ))
-        return 0
-
-    keyboardLevel = InlineKeyboardBuilder()
-    keyboardLevel.button(text="Детский", callback_data="set_kid")
-    keyboardLevel.button(text="Средний", callback_data="set_middle")
-    keyboardLevel.button(text="Сложный", callback_data="set_hard")
-
-    msg = start_messages['ru']['hello_message'].format(user=html.bold(message.from_user.full_name))
-    
-    await message.answer(msg, reply_markup=keyboardLevel.as_markup())
-    # await message.answer("Просим прощения!\n\nМы временно ограничили регистрацию из-за участившихся случаев атак на нашего бота.\n\n⌚ Конкурс заканчивается 22.02.2026.\nСпасибо за понимание")
 
 
 ### Выставление режима сложности ###
@@ -373,6 +358,9 @@ async def concurs():
         None
 
 async def main():
+    ### Подключаем внешние команды
+    dp.include_router(startRouter) # команда /start
+
     asyncio.create_task(scheduler())
     await dp.start_polling(bot)
 
