@@ -8,14 +8,14 @@ from aiogram import Bot, Dispatcher, html, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, InlineKeyboardButton, CallbackQuery, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from json import load
 
-from func.create_db import create_user, get_all_users, get_winstrik, add_winstrik, clear_winstrik, set_visible_concurs, ban_user
+from func.create_db import create_user, get_all_users, get_winstrik, add_winstrik, clear_winstrik, set_visible_concurs, ban_user, set_null_quest, set_a_b_quest, get_user
 from func.generate_and_answer import generate_math
 
 bot = Bot(token=config.TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -52,7 +52,13 @@ class Form(StatesGroup):
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message):
+    get_user_info_from_table = await get_user(str(message.from_user.id))
 
+    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
+        await message.answer(main_programm["ru"]["banned"].format(
+            name=message.from_user.first_name
+        ))
+        return 0
 
     keyboardLevel = InlineKeyboardBuilder()
     keyboardLevel.button(text="Детский", callback_data="set_kid")
@@ -60,7 +66,6 @@ async def command_start_handler(message: Message):
     keyboardLevel.button(text="Сложный", callback_data="set_hard")
 
     msg = start_messages['ru']['hello_message'].format(user=html.bold(message.from_user.full_name))
-    
     
     await message.answer(msg, reply_markup=keyboardLevel.as_markup())
     # await message.answer("Просим прощения!\n\nМы временно ограничили регистрацию из-за участившихся случаев атак на нашего бота.\n\n⌚ Конкурс заканчивается 22.02.2026.\nСпасибо за понимание")
@@ -75,14 +80,23 @@ async def kid_mode_set(query: CallbackQuery, state: FSMContext):
     await concurs()
 
     await query.answer()
-    await state.set_state(Form.normal_mode)
     await create_user(id=str(query.from_user.id), level=level[1], username=str(query.from_user.username))
 
+    await set_null_quest(str(query.from_user.id)) # Сбрасываем математический вопрос 
+    await scheduler()
 
 
-@dp.message(Command(commands="stats"))
-async def stats(message: Message):
+
+@dp.message(Command(commands="leader"))
+async def leader(message: Message):
     users = await get_all_users()
+    get_user_info_from_table = await get_user(str(message.from_user.id))
+
+    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
+        await message.answer(main_programm["ru"]["banned"].format(
+            name=message.from_user.first_name
+        ))
+        return 0
     
 
     sorted_users = sorted(users, key=lambda x: x[2], reverse=True)
@@ -102,16 +116,163 @@ async def stats(message: Message):
 
     await message.answer(messages)
 
-@dp.message(Command(commands="ban"))
+@dp.message(Command(commands="setting"))
+async def setting(message: Message):
+    get_user_info_from_table = await get_user(str(message.from_user.id))
+
+    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
+        await message.answer(main_programm["ru"]["banned"].format(
+            name=message.from_user.first_name
+        ))
+        return 0
+
+    keyboardLevel = InlineKeyboardBuilder()
+    keyboardLevel.button(text="Детский", callback_data="set_kid")
+    keyboardLevel.button(text="Средний", callback_data="set_middle")
+    keyboardLevel.button(text="Сложный", callback_data="set_hard")
+
+    msg = main_programm["ru"]["select_level"].format(user=html.bold(message.from_user.full_name))
+    
+    await message.answer(msg, reply_markup=keyboardLevel.as_markup())
+
+@dp.message(Command(commands="stats"))
 async def stats(message: Message):
+    users = await get_all_users()
+    get_user_info_from_table = await get_user(str(message.from_user.id))
+
+    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
+        await message.answer(main_programm["ru"]["banned"].format(
+            name=message.from_user.first_name
+        ))
+        return 0
+
+    for user in users:
+        if (user[0] == message.from_user.id):
+            try:
+                await message.answer(main_programm["ru"]["stats"].format(
+                    good_answer=user[8],
+                    bad_answer=user[9],
+                    proc_good_answer=round((int(user[8]) / int(user[10])) * 100),
+                    proc_bad_answer=round((int(user[9]) / int(user[10])) * 100)
+                ))
+            except ZeroDivisionError: # если результат деления 0
+                await message.answer(main_programm["ru"]["stats"].format(
+                    good_answer=user[8],
+                    bad_answer=user[9],
+                    proc_good_answer="У вас нету решённых задач",
+                    proc_bad_answer="У вас нету решённых задач"
+                ))
+
+@dp.message(Command(commands="help"))
+async def help(message: Message):
+    get_user_info_from_table = await get_user(str(message.from_user.id))
+
+    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
+        await message.answer(main_programm["ru"]["banned"].format(
+            name=message.from_user.first_name
+        ))
+        return 0
+
+    await message.answer(main_programm["ru"]["help"])
+
+@dp.message(Command(commands="ban"))
+async def ban(message: Message):
     if (str(message.from_user.id) == config.ADMIN_ID):
         id_ban_user = message.text.split(" ", 1)[1]
 
         await ban_user(str(id_ban_user))
     else:
-        await message.answer("Вам нельзя банить")
+        await message.answer(main_programm["ru"]["none_id"])
 
 
+@dp.message(Command(commands="send_message"))
+async def send_message(message: Message):
+    if (message.from_user.id == int(config.ADMIN_ID)):
+        message_list = message.text.split(" ")
+        length = len(message_list)
+
+        if (length > 1):
+            users = await get_all_users()
+
+            send_message_text = ""
+
+            for i in range(length - 1): ### -1 потому что мы исключаем саму команду
+                send_message_text += message_list[i + 1] + " " ### +1, чтоб избежать первого элемента 
+
+            try:
+                for user in users:
+                    await bot.send_message(int(user[0]), send_message_text)
+            except:
+                None
+                # Если пользователь отсутсвует по id, то ошибка не вызывается
+        else:
+            builder = InlineKeyboardBuilder()
+        
+            ### перебор папок ###
+
+            what_inside_dir = os.listdir("assets/messages")
+            send_message_text = main_programm["ru"]["send_message_select"]
+
+            for i in range(len(what_inside_dir)):
+                builder.add(InlineKeyboardButton(text=f"{i + 1}", callback_data=f"message_{what_inside_dir[i]}"))
+            
+                send_message_text += f"{i + 1}. {what_inside_dir[i]}\n"
+            
+        
+            await message.answer(f"{send_message_text}", reply_markup=builder.as_markup())
+    else:
+        await message.answer(main_programm["ru"]["none_id"])
+
+@dp.message(Command(commands="new_quest"))
+async def new_quest(message: Message):
+    get_user_info_from_table = await get_user(str(message.from_user.id))
+
+    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
+        await message.answer(main_programm["ru"]["banned"].format(
+            name=message.from_user.first_name
+        ))
+        return 0
+    
+    await set_null_quest(str(message.from_user.id))
+
+@dp.callback_query(F.data.startswith("message_"))
+async def send_message_from_file(query: CallbackQuery):
+    what_file = query.data.split("_", 1)
+
+    with open(f"assets/messages/{what_file[1]}") as f:
+        opened_file = load(f)
+        message_to_send = main_programm["ru"]["select_in_file"].format(
+            file = what_file[1]
+        )
+
+        builder = InlineKeyboardBuilder()
+
+        i = 0
+        for list in opened_file["ru"]:
+            builder.add(InlineKeyboardButton(text=f"{i + 1}", callback_data=f"string_{what_file[1]}_{list}"))
+            message_to_send += f"{i+1}. {list}\n"
+
+            i += 1
+
+        await query.answer()
+        await bot.send_message(query.from_user.id, message_to_send, reply_markup=builder.as_markup())
+
+@dp.callback_query(F.data.startswith("string_"))
+async def send_message_from_file(query: CallbackQuery):
+    split_string = query.data.split("_")
+
+    try:
+        with open(f"assets/messages/{split_string[1]}") as f:
+            opened_json = load(f)
+
+            await query.answer()
+            await bot.send_message(query.from_user.id, opened_json["ru"][f"{split_string[2]}"])
+    except FileNotFoundError: # Если в файле есть ещё разделения
+        with open(f"assets/messages/{split_string[1]}_{split_string[2]}") as f:
+            opened_json = load(f)
+
+            await query.answer()
+            await bot.send_message(query.from_user.id, opened_json["ru"][f"{split_string[3]}"])
 
 
 @dp.message(Form.math_mode)
@@ -127,6 +288,7 @@ async def math_mode(message: Message, state: FSMContext):
                                 c=data_math.get("current_answer")
                                 ))
             await state.set_state(Form.normal_mode)
+            await set_null_quest(str(message.from_user.id))
             await add_winstrik(message.from_user.id)
         else:
             await message.answer(makets_messages_math['ru']['not_correct']
@@ -134,6 +296,7 @@ async def math_mode(message: Message, state: FSMContext):
                                          b=data_math.get("current_b"),
                                          c=data_math.get("current_answer")))
             await state.set_state(Form.normal_mode)
+            await set_null_quest(str(message.from_user.id))
             await clear_winstrik(message.from_user.id)
     except ValueError:
         await message.answer(main_programm["ru"]["unvalid_value"])
@@ -148,7 +311,7 @@ async def scheduler():
 
         try:
             for user in result:
-                if (user[4] != 1):
+                if user[4] != 1: ### Если не забанен
                     state_with: FSMContext = FSMContext(
                         storage=dp.storage,
                         key=StorageKey(
@@ -161,20 +324,39 @@ async def scheduler():
                     math_quest = generate_math(user[1])
                     current_state = await state_with.get_state()
 
-                    if (current_state != Form.math_mode):
+                    ## Получение предыдущего вопроса от бота 
+                    a = int(user[6])
+                    b = int(user[7])
+
+                    if (a == 0): # a = 0, только если пользователь не разу не получал сообщение с примером
+                        generate_a=int(math_quest["a"])
+                        generate_b=int(math_quest["b"])
+                        generate_answer=generate_a*generate_b
+
+                        await set_a_b_quest(user[0], generate_a, generate_b) # Устанавливаем значение в таблицу
+
                         await state_with.set_state(Form.math_mode)
-                        await state_with.update_data(current_a=int(math_quest["a"]), 
-                                                 current_b=int(math_quest["b"]),
-                                                 current_answer=int(math_quest["a"]) * int(math_quest["b"]))
+                        await state_with.update_data(current_a=generate_a, 
+                                                    current_b=generate_b,
+                                                    current_answer=generate_answer)
                         await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
-                                               .format(quest=math_quest["quest"],
-                                                       strik=await get_winstrik(int(user[0])),
-                                                       mode=user[1]
-                                               ))
-                else:
-                    await bot.send_message(int(user[0]), "Вы блять забанены тут, идите нахуй")
+                                                .format(quest=math_quest["quest"],
+                                                        strik=await get_winstrik(int(user[0])),
+                                                        mode=user[1]
+                                                ))
+                    else: # Если всё таки есть предыдущий пример
+                        await state_with.set_state(Form.math_mode)
+                        await state_with.update_data(current_a=a, 
+                                                    current_b=b,
+                                                    current_answer=a*b)
         except:
             t = "None"
+
+async def output_result_in_end_day():
+    while True:
+        await asyncio.sleep(3600) # Каждый час
+
+
 
 ### Конкурс ###
 
