@@ -2,3 +2,6 @@ create_recomendaton.txt
 func/date/users.db
 bot2.py
 test.txt
+func/date/users_test_base.db
+func/__pycache__/generate_and_answer.cpython-313.pyc
+func/__pycache__/create_db.cpython-313.pyc
