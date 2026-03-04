@@ -39,14 +39,21 @@ async def set_visible_concurs(id): # Видел конкурс
                    WHERE id = (?);""", (str(id),))
     
 async def get_all_users():
-    cursor.execute("SELECT id, level, max_strik, concurs_message, banned, username FROM users")
+    cursor.execute("SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer FROM users")
+    return cursor.fetchall()
+async def get_user(id: str):
+    cursor.execute("""SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer 
+                   FROM users
+                   WHERE id = (?)""", (str(id),))
     return cursor.fetchall()
 
 ### Работа с винстриком ###
 
 async def add_winstrik(id):
     cursor.execute("""UPDATE users 
-                   SET x_good_answer = x_good_answer + 1 
+                   SET x_good_answer = x_good_answer + 1,
+                    all_good_answer = all_good_answer + 1,
+                    all_answer = all_answer + 1
                    WHERE id = (?);""", (str(id),))
     conn.commit()
 async def get_winstrik(id):
@@ -63,9 +70,12 @@ async def get_winstrik(id):
     return returned[0][0]
 async def clear_winstrik(id):
     cursor.execute("""UPDATE users 
-                   SET x_good_answer = 0
+                   SET x_good_answer = 0,
+                   all_bad_answer = all_bad_answer + 1,
+                   all_answer = all_answer + 1
                    WHERE id = (?);""", (str(id),))
     conn.commit()
+
 
 ### Работа с уровнем ###
 
@@ -87,6 +97,24 @@ async def ban_user(id: str):
                    x_good_answer = 0,
                    max_strik = 0
                 WHERE id = (?);""", (str(id),))
+    conn.commit()
+
+### Работа с математическими заданиями ###
+
+async def set_null_quest(id: str):
+    cursor.execute("""UPDATE users 
+            SET
+               a = 0,
+               b = 0
+            WHERE id = (?);""", (str(id),))
+    conn.commit()
+
+async def set_a_b_quest(id: str, a: int, b: int):
+    cursor.execute("""UPDATE users 
+        SET
+           a = (?),
+           b = (?)
+        WHERE id = (?);""", (a, b, str(id)))
     conn.commit()
 
 # if __name__ == '__main__':
