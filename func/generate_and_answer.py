@@ -34,13 +34,9 @@ def generate_math(level: str) -> str:
         if (one_number == two_number):
             one_number = random.randint(3, 9)
             two_number = random.randint(3, 9) 
-    else:
-        one_number = random.randint(3, 9)
-        two_number = random.randint(3, 9)
-
-        if (one_number == two_number):
-            one_number = random.randint(3, 9)
-            two_number = random.randint(3, 9) 
+    elif (level == 'hard'):
+        one_number = random.randint(3, 99)
+        two_number = random.randint(3, 99)
 
     math_questions = makets_messages['ru']['x'].format(a=one_number, b = two_number)
     return {"quest": math_questions, "a": one_number, "b": two_number}
