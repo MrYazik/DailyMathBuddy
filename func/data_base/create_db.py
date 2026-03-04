@@ -13,9 +13,9 @@ from pathlib import Path
 import sqlite3
 import asyncio
 
-script_dir = Path(__file__).parent.parent
+script_dir = Path(__file__).parent.parent.parent
 # path = script_dir / 'func' / 'date' / 'users.db'
-path = script_dir / 'func' / 'date' / 'users_test_base.db'
+path = script_dir / 'func' / 'data_base' / 'users_test_base.db'
 
 # Подключение (файл создастся, если его нет)
 conn = sqlite3.connect(path)
