@@ -56,6 +56,8 @@ class Form(StatesGroup):
 
 
 
+
+
 ### Выставление режима сложности ###
 @dp.callback_query(F.data.startswith("set_"))
 async def kid_mode_set(query: CallbackQuery, state: FSMContext):
@@ -101,7 +103,12 @@ async def leader(message: Message):
 
     await message.answer(messages)
 
-@dp.message(Command(commands="setting"))
+### Меню настроек
+# Суть: отоброжения меню выбора что настроить, потом если есть ещё вложенные настройки отобразить их
+# Сначала выхываем главное меню, в котором отображаем все кнопки.
+#
+#
+@dp.message(Command(commands="settings"))
 async def setting(message: Message):
     get_user_info_from_table = await get_user(str(message.from_user.id))
 
@@ -111,14 +118,89 @@ async def setting(message: Message):
         ))
         return 0
 
-    keyboardLevel = InlineKeyboardBuilder()
-    keyboardLevel.button(text="Детский", callback_data="set_kid")
-    keyboardLevel.button(text="Средний", callback_data="set_middle")
-    keyboardLevel.button(text="Сложный", callback_data="set_hard")
+    keyboard = InlineKeyboardBuilder()
+    keyboard.button(text="Уровень", callback_data="settings_level")
+    keyboard.button(text="Статистика в конце дня", callback_data="settings_outputstats")
 
-    msg = main_programm["ru"]["select_level"].format(user=html.bold(message.from_user.full_name))
+    msg = main_programm["ru"]["settings"].format(name=message.from_user.full_name)
+    await message.answer(msg, reply_markup=keyboard.as_markup())
+
+### Если нажали одну из кнопок в меню настроек
+@dp.callback_query(F.data.startswith("settings_"))
+async def settings(query: CallbackQuery):
+    split = query.data.split("_", 1)[1]
+
+    ### Если выбрали настройку уведомлений со статистикой
+    if split == "outputstats":
+        keyboard = InlineKeyboardBuilder()
+        keyboard.button(text="Временная зона", callback_data="output_timezone")
+        keyboard.button(text="Статистика в конце дня", callback_data="output_stats")
+
+        msg = main_programm["ru"]["output_stats"]
     
-    await message.answer(msg, reply_markup=keyboardLevel.as_markup())
+        await query.answer()
+        await bot.send_message(chat_id=query.from_user.id, text=msg, reply_markup=keyboard.as_markup())
+    ### Если выбрали настройку уровня
+    elif split == "level":
+        keyboardLevel = InlineKeyboardBuilder()
+        keyboardLevel.button(text="Детский", callback_data="set_kid")
+        keyboardLevel.button(text="Средний", callback_data="set_middle")
+        keyboardLevel.button(text="Сложный", callback_data="set_hard")
+
+        msg = main_programm["ru"]["select_level"]
+    
+        await query.answer()
+        await bot.send_message(chat_id=query.from_user.id, text=msg, reply_markup=keyboardLevel.as_markup())
+
+# Если нажали на что-то в меню выбора настройки уведомлений в конце дня
+@dp.callback_query(F.data.startswith("output_"))
+async def settings_output(query: CallbackQuery, state: FSMContext):
+    split = query.data.split("_", 1)[1]
+
+    # Если timezone
+    if split == "timezone":
+        msg = main_programm["ru"]["timezone"]
+
+        ### Ставим статус в таблице, то что человек в настройках, чтоб наш метод
+        # sheduler(), не менял статус обратно
+
+        await in_settings(True, query.from_user.id)
+
+        await state.clear()
+        await state.set_state(Form.settings_mode)
+        await query.answer()
+        await bot.send_message(chat_id=query.from_user.id, text=msg)
+    # Если настройка включение/выключения уведомлений
+    elif split == "stats":
+        msg = main_programm["ru"]["output_stats_on_off"]
+
+        await query.answer()
+        await bot.send_message(chat_id=query.from_user.id, text=msg)
+
+# Меню настройки времени
+
+@dp.message(Form.settings_mode)
+async def select_timezone(message: Message, state: FSMContext):
+    try:
+        user_msg = int(message.text.strip())
+
+        if (user_msg <= 12 & user_msg >= -12):
+            await message.answer(main_programm["ru"]["nice_zone"].format(
+                zone = str(user_msg)
+            ))
+
+            await set_timezone(user_msg, str(message.from_user.id))
+            ### Сбрасываем пример
+            await set_null_quest(str(message.from_user.id))
+            ### Возвращаем статус 'в настройках', чтою sheduler мог нам присылать сообщения
+            await in_settings(False, str(message.from_user.id))  
+
+        else:
+            msg = main_programm["ru"]["error_timezone"]
+            await message.answer(msg)
+    except:
+        msg = main_programm["ru"]["error_timezone"]
+        await message.answer(msg)
 
 @dp.message(Command(commands="stats"))
 async def stats(message: Message):
@@ -296,7 +378,7 @@ async def scheduler():
 
         try:
             for user in result:
-                if user[4] != 1: ### Если не забанен
+                if user[4] != 1 and user[11] != 1: ### Если не забанен
                     state_with: FSMContext = FSMContext(
                         storage=dp.storage,
                         key=StorageKey(
@@ -309,29 +391,31 @@ async def scheduler():
                     math_quest = generate_math(user[1])
                     current_state = await state_with.get_state()
 
-                    ## Получение предыдущего вопроса от бота 
-                    a = int(user[6])
-                    b = int(user[7])
+                    if current_state != Form.math_mode: # Чтоб лишний раз не нагружать
 
-                    if (a == 0): # a = 0, только если пользователь не разу не получал сообщение с примером
-                        generate_a=int(math_quest["a"])
-                        generate_b=int(math_quest["b"])
-                        generate_answer=generate_a*generate_b
+                        ## Получение предыдущего вопроса от бота 
+                        a = int(user[6])
+                        b = int(user[7])
 
-                        await set_a_b_quest(user[0], generate_a, generate_b) # Устанавливаем значение в таблицу
+                        if (a == 0): # a = 0, только если пользователь не разу не получал сообщение с примером
+                            generate_a=int(math_quest["a"])
+                            generate_b=int(math_quest["b"])
+                            generate_answer=generate_a*generate_b
 
-                        await state_with.set_state(Form.math_mode)
-                        await state_with.update_data(current_a=generate_a, 
+                            await set_a_b_quest(user[0], generate_a, generate_b) # Устанавливаем значение в таблицу
+
+                            await state_with.set_state(Form.math_mode)
+                            await state_with.update_data(current_a=generate_a, 
                                                     current_b=generate_b,
                                                     current_answer=generate_answer)
-                        await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
+                            await bot.send_message(int(user[0]), main_programm['ru']['quest_math']
                                                 .format(quest=math_quest["quest"],
                                                         strik=await get_winstrik(int(user[0])),
                                                         mode=user[1]
-                                                ))
-                    else: # Если всё таки есть предыдущий пример
-                        await state_with.set_state(Form.math_mode)
-                        await state_with.update_data(current_a=a, 
+                                                    ))
+                        else: # Если всё таки есть предыдущий пример
+                            await state_with.set_state(Form.math_mode)
+                            await state_with.update_data(current_a=a, 
                                                     current_b=b,
                                                     current_answer=a*b)
         except:
