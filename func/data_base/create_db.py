@@ -39,7 +39,7 @@ async def set_visible_concurs(id): # Видел конкурс
                    WHERE id = (?);""", (str(id),))
     
 async def get_all_users():
-    cursor.execute("SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer FROM users")
+    cursor.execute("SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer, in_settings FROM users")
     return cursor.fetchall()
 async def get_user(id: str):
     cursor.execute("""SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer 
@@ -116,6 +116,29 @@ async def set_a_b_quest(id: str, a: int, b: int):
            a = (?),
            b = (?)
         WHERE id = (?);""", (a, b, str(id)))
+    conn.commit()
+
+### Работа с timezone ###
+async def set_timezone(timezone: int, id: str):
+    cursor.execute("""UPDATE users 
+    SET
+        timezone = (?)
+    WHERE id = (?);""", (timezone, str(id)))
+    conn.commit()
+
+### Работа с выводом таблицы в конце дня 
+async def on_off_table(bool: bool, id: str):
+    cursor.execute("""UPDATE users 
+    SET
+        on_off_output_stats = (?)
+    WHERE id = (?);""", (bool, str(id)))
+    conn.commit()
+
+async def in_settings(bool: bool, id: str):
+    cursor.execute("""UPDATE users 
+    SET
+        in_settings = (?)
+    WHERE id = (?);""", (bool, str(id)))
     conn.commit()
 
 # if __name__ == '__main__':
