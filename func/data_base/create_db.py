@@ -42,7 +42,7 @@ async def get_all_users():
     cursor.execute("SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer, in_settings FROM users")
     return cursor.fetchall()
 async def get_user(id: str):
-    cursor.execute("""SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer 
+    cursor.execute("""SELECT id, level, max_strik, concurs_message, banned, username, a, b, all_good_answer, all_bad_answer, all_answer, on_off_output_stats
                    FROM users
                    WHERE id = (?)""", (str(id),))
     returned = cursor.fetchall()
