@@ -209,9 +209,9 @@ async def on_off_stats(query: CallbackQuery, state: FSMContext):
 @dp.message(Form.settings_mode)
 async def select_timezone(message: Message, state: FSMContext):
     try:
-        user_msg = int(message.text.strip())
+        user_msg = int(message.text)
 
-        if (user_msg <= 12 & user_msg >= -12):
+        if (user_msg >= -12 and user_msg <= 12):
             await message.answer(main_programm["ru"]["nice_zone"].format(
                 zone = str(user_msg)
             ))
@@ -318,7 +318,7 @@ async def send_message(message: Message):
         await message.answer(main_programm["ru"]["none_id"])
 
 @dp.message(Command(commands="new_quest"))
-async def new_quest(message: Message):
+async def new_quest(message: Message, state: FSMContext):
     get_user_info_from_table = await get_user(str(message.from_user.id))
 
     if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
@@ -328,6 +328,7 @@ async def new_quest(message: Message):
         return 0
     
     await set_null_quest(str(message.from_user.id))
+    await state.clear() # Чтоб sheduler мог заного сгенерировать пример
 
 @dp.callback_query(F.data.startswith("message_"))
 async def send_message_from_file(query: CallbackQuery):
