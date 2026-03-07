@@ -70,6 +70,8 @@ async def kid_mode_set(query: CallbackQuery, state: FSMContext):
     await create_user(id=str(query.from_user.id), level=level[1], username=str(query.from_user.username))
 
     await set_null_quest(str(query.from_user.id)) # Сбрасываем математический вопрос 
+    await state.clear() # Если стоит State: Form.math_mode, то он не пустит перегенерировать числа
+
     await scheduler()
 
 
@@ -174,8 +176,33 @@ async def settings_output(query: CallbackQuery, state: FSMContext):
     elif split == "stats":
         msg = main_programm["ru"]["output_stats_on_off"]
 
+        keyboard = InlineKeyboardBuilder()
+        keyboard.button(text="Включить", callback_data="stats_on")
+        keyboard.button(text="Выключить", callback_data="stats_off")
+
         await query.answer()
-        await bot.send_message(chat_id=query.from_user.id, text=msg)
+        await bot.send_message(chat_id=query.from_user.id, text=msg, reply_markup=keyboard.as_markup())
+
+# Если нажата кнопка вкл/выкл уведомл.
+@dp.callback_query(F.data.startswith("stats_"))
+async def on_off_stats(query: CallbackQuery, state: FSMContext):
+    data = query.data.split("_", 1)[1]
+
+    if (data == 'on'):
+        await on_off_table(True, str(query.from_user.id))
+
+        await query.answer()
+        await bot.send_message(query.from_user.id, main_programm["ru"]["on_table"])
+
+        await set_null_quest(query.from_user.id)
+        await state.clear() # очищаем состояние, для того чтоб функция могла сгенерировать новый пример
+    else:
+        await on_off_table(False, str(query.from_user.id))
+        await query.answer()
+
+        await bot.send_message(query.from_user.id, main_programm["ru"]["off_table"])
+        await set_null_quest(query.from_user.id)
+        await state.clear() # очищаем состояние, для того чтоб функция могла сгенерировать новый пример
 
 # Меню настройки времени
 
