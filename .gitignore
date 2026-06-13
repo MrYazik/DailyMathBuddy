@@ -10,3 +10,13 @@ func/data_base/users_test_base.db
 func/data_base/users.db
 func/data_base/__pycache__/create_db.cpython-313.pyc
 func/__pycache__/__init__.cpython-313.pyc
+.venv/
+.gitignore
+.gitignore
+func/__pycache__/command_start.cpython-314.pyc
+.gitignore
+__pycache__/config.cpython-314.pyc
+.DS_Store
+func/data_base/__pycache__/create_db.cpython-314.pyc
+func/__pycache__/generate_and_answer.cpython-314.pyc
+.gitignore

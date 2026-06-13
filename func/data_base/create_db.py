@@ -15,11 +15,38 @@ import asyncio
 
 script_dir = Path(__file__).parent.parent.parent
 # path = script_dir / 'func' / 'date' / 'users.db'
-path = script_dir / 'func' / 'data_base' / 'users_test_base.db'
+path = script_dir / 'func' / 'data_base' / 'users.db'
+
+TABLE_SCHEMA = '''
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    level TEXT DEFAULT 'kid',
+    max_strik INTEGER DEFAULT 0,
+    concurs_message INTEGER DEFAULT 0,
+    banned INTEGER DEFAULT 0,
+    username TEXT,
+    a INTEGER DEFAULT 0,
+    b INTEGER DEFAULT 0,
+    all_good_answer INTEGER DEFAULT 0,
+    all_bad_answer INTEGER DEFAULT 0,
+    all_answer INTEGER DEFAULT 0,
+    in_settings INTEGER DEFAULT 0,
+    on_off_output_stats INTEGER DEFAULT 1,
+    x_good_answer INTEGER DEFAULT 0,
+    timezone INTEGER DEFAULT 0
+);
+'''
+
+
+def _ensure_users_table(connection: sqlite3.Connection):
+    connection.execute(TABLE_SCHEMA)
+    connection.commit()
+
 
 # Подключение (файл создастся, если его нет)
 conn = sqlite3.connect(path)
 cursor = conn.cursor()
+_ensure_users_table(conn)
 
 ### Работа с самим пользователем ###
 
@@ -159,5 +186,14 @@ async def in_settings(bool: bool, id: str):
 async def main():
     asyncio.create_task(get_level(1105683502))
 
-if __name__ == '__main__':
-    asyncio.run(main())
+async def create_db():
+    db_path = script_dir / 'func' / 'data_base' / 'users.db'
+
+    with sqlite3.connect(db_path) as database:
+        _ensure_users_table(database)
+
+
+def create_table():
+    with sqlite3.connect(path) as database:
+        _ensure_users_table(database)
+    

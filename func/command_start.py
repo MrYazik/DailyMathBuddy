@@ -29,7 +29,7 @@ router = Router()
 async def command_start_handler(message: Message):
     get_user_info_from_table = await get_user(str(message.from_user.id))
 
-    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
+    if get_user_info_from_table and get_user_info_from_table[0][4] == True: ### Если пользователь забанен
         await message.answer(main_programm["ru"]["banned"].format(
             name=message.from_user.first_name
         ))

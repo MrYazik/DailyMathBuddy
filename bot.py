@@ -42,6 +42,11 @@ with open("assets/messages/main_program.json") as file:
 with open("assets/messages/math_op.json") as file:
     makets_messages_math = load(file)
 
+# Проверка на то что существует ли файл с базой данных, если нету, то создаём его
+if not os.path.exists("func/data_base/users.db"):
+    from func.data_base.create_db import create_table
+    create_table()
+
 
 class Form(StatesGroup):
     # Режимы
@@ -81,11 +86,14 @@ async def leader(message: Message):
     users = await get_all_users()
     get_user_info_from_table = await get_user(str(message.from_user.id))
 
-    if (get_user_info_from_table[0][4] == True): ### Если пользователь забанен
-        await message.answer(main_programm["ru"]["banned"].format(
-            name=message.from_user.first_name
-        ))
-        return 0
+    ### Если пользователь забанен
+    if (get_user_info_from_table[0][4].exists()): # Что бы не было ошибки с пустой таблицей
+        if (get_user_info_from_table[0][4] == True):
+
+            await message.answer(main_programm["ru"]["banned"].format(
+                name=message.from_user.first_name
+            ))
+            return 0
     
 
     sorted_users = sorted(users, key=lambda x: x[2], reverse=True)
@@ -470,6 +478,8 @@ async def concurs():
         None
 
 async def main():
+    await bot.delete_webhook(drop_pending_updates=True) # отсоединяем старые ссессии от бота, чтоб не было проблем с обновлением кода
+
     ### Подключаем внешние команды
     dp.include_router(startRouter) # команда /start
 
