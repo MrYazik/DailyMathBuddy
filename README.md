@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Status](https://img.shields.io/badge/Status-Dormant%20%26%20occasional%20updates-yellow)
 
-> <img src="README/png/icon_app.png" width=64 align="right">
+> <img src="./README/png/icon_app.png" width=64 align="right">
 > Daily Math Buddy - Telegram-бот для регулярной тренировки таблицы умножения. Он выдаёт примеры по выбранной сложности, сохраняет результат, показывает личную и глобальную статистику и помогает выработать привычку к коротким ежедневным сессиям.
 
 ## Содержание
